@@ -6,13 +6,12 @@ This project demonstrates data and model versioning using DVC (Data Version Cont
 
 - `main.py` — Main script for training and saving the model.
 - `runner.sh` — Automates DVC and Git versioning for your own dataset and model.
-- `ssh_versioning.sh` — Automates the DVC versioning workflow for the [DVC example-versioning repo](https://github.com/iterative/example-versioning).
 - `data/iris.csv` — Example dataset (Iris dataset).
 - `requirements.txt` — Python dependencies.
 
 ## Getting Started
 
-### 1. Local Data & Model Versioning (`runner.sh`)
+### Data & Model Versioning (`runner.sh`)
 This script:
 - Initializes Git and DVC if needed
 - Ensures `data/iris.csv` is tracked by DVC, not Git
@@ -23,20 +22,6 @@ This script:
 **Usage:**
 ```bash
 bash runner.sh
-```
-
-### 2. Example DVC Workflow (`ssh_versioning.sh`)
-This script:
-- Clones the DVC example repo
-- Sets up a virtual environment and installs dependencies
-- Downloads and tracks data with DVC
-- Trains the model, tracks model weights and metrics
-- Demonstrates two iterations (v1.0 and v2.0) with DVC and Git tags
-- Shows how to checkout previous versions
-
-**Usage:**
-```bash
-bash ssh_versioning.sh
 ```
 
 ## Requirements
@@ -51,7 +36,6 @@ bash ssh_versioning.sh
 
 ## References
 - [DVC Documentation](https://dvc.org/doc)
-- [DVC Example Versioning Repo](https://github.com/iterative/example-versioning)
 
 ---
 
