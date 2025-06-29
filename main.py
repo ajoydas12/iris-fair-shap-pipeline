@@ -24,7 +24,7 @@ print('The accuracy of the Decision Tree is',"{:.3f}".format(metrics.accuracy_sc
 # Save model
 os.makedirs('models', exist_ok=True)
 with open('models/decision_tree_model.pkl', 'wb') as f:
-    pickle.dump(mod_dt)
+    pickle.dump(mod_dt, f)
 
 print("Model saved to models/decision_tree_model.pkl")
 
