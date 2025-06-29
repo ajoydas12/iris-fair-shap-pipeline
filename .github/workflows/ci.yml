@@ -1,0 +1,43 @@
+name: Sanity test 2
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  test_model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.9"
+      - uses: iterative/setup-cml@v2
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install dvc scikit-learn pandas pytest
+      - name: Pull DVC data
+        run: |
+          dvc pull || true
+      - name: Run unit tests and evaluation
+        run: |
+          pytest --maxfail=1 --disable-warnings --tb=short > test_output.txt || true
+          python tests/test_evaluation.py > accuracy_report.txt || true
+      - name: Create CML report
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "## :bar_chart: Model Accuracy Report" > report.md
+          cat accuracy_report.txt >> report.md
+          echo '\n---\n' >> report.md
+          echo '### Pytest Results' >> report.md
+          echo '\n```' >> report.md
+          cat test_output.txt >> report.md
+          echo '```\n' >> report.md
+          if [ -f metrics.csv ]; then
+            echo '### Metrics from Training' >> report.md
+            cat metrics.csv >> report.md
+          fi
+          cml comment create --publish report.md
