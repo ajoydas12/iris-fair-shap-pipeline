@@ -1,125 +1,100 @@
-
 #!/bin/bash
 
-# This script automates the setup and versioning of a machine learning project using DVC and Git.
+# Automated ML project setup using Git and DVC
+# Author: Ajoy Das
+
+# Step 0: Configure Git globally (only needs to be done once per system)
 git config --global user.email "ajoyd0957@gmail.com"
 git config --global user.name "ajoydas12"
 
-echo "********************"
-echo "Step 0: Initialize Git repository if needed"
-if ! git rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-    echo "Initializing new Git repository..."
+echo "========== [0] Checking Git Initialization =========="
+if ! git rev-parse --is-inside-work-tree &> /dev/null; then
+    echo "Creating a new Git repository..."
     git init
     git add .
-    git commit -m "Initial commit"
+    git commit -m "Initial commit setup"
 else
-    echo "Git repository already initialized"
+    echo "Git repo already exists"
 fi
 
-echo "********************"
-echo "Step 1: Ensure data/iris.csv is not tracked by Git"
-if git ls-files --error-unmatch data/iris.csv > /dev/null 2>&1; then
-    echo "Removing data/iris.csv from Git history (index)..."
+echo "========== [1] Removing iris.csv from Git =========="
+if git ls-files --error-unmatch data/iris.csv &> /dev/null; then
+    echo "Untracking iris.csv from Git (handing off to DVC)..."
     git rm --cached data/iris.csv
 fi
 
-echo "******************************"
-echo "Step 2: Create and activate virtual environment"
+echo "========== [2] Setting Up Python Environment =========="
 python3 -m venv .venv
 source .venv/bin/activate
 
-echo "******************************"
-echo "Step 3: Install requirements and DVC"
+echo "========== [3] Installing Python Dependencies =========="
 pip install --upgrade pip
 pip install -r requirements.txt
 pip install dvc
 
-echo "******************************"
-echo "Step 4: Initialize DVC"
+echo "========== [4] DVC Initialization =========="
 if [ ! -d ".dvc" ]; then
     dvc init
     git add .dvc .dvc/.gitignore
-    git commit -m "Initialize DVC"
+    git commit -m "Initialize DVC version control"
 else
-    echo "DVC already initialized"
+    echo "DVC already set up"
 fi
 
-echo "******************************"
-echo "Step 5: Track dataset (V1)"
+echo "========== [5] Versioning Dataset - V1 =========="
 dvc add data/iris.csv
-git add data/iris.csv.dvc .dvc .gitignore
-git commit -m "Add iris.csv as V1"
+git add data/iris.csv.dvc .gitignore
+git commit -m "Track iris.csv as Version 1"
 
-echo "******************************"
-echo "Step 6: Train model and save it (V1)"
+echo "========== [6] Model Training - V1 =========="
 python main.py
-
-echo "=> Saving model as pickle (V1)"
+echo "Saving trained model (V1)..."
 mkdir -p models
 mv models/decision_tree_model.pkl models/decision_tree_model_v1.pkl
 git add models/decision_tree_model_v1.pkl
-git commit -m "Train and save model for V1"
+git commit -m "Store trained model as V1"
 git tag V1
 
-echo "******************************"
-echo "Step 7: Modify dataset to create V2"
-head -n 100 data/iris.csv > data/iris_v2.csv
-mv data/iris_v2.csv data/iris.csv
-
-echo "=> Re-track modified data"
+echo "========== [7] Creating Dataset V2 =========="
+head -n 100 data/iris.csv > data/temp.csv && mv data/temp.csv data/iris.csv
 dvc add data/iris.csv
 git add data/iris.csv.dvc
-git commit -m "Update iris.csv to V2 (new 100 rows)"
+git commit -m "Updated dataset: Version 2 (100 rows only)"
 
-echo "******************************"
-echo "Step 8: Train model and save it (V2)"
+echo "========== [8] Model Training - V2 =========="
 python main.py
-
-echo "=> Saving model as pickle (V2)"
+echo "Saving trained model (V2)..."
 mv models/decision_tree_model.pkl models/decision_tree_model_v2.pkl
 git add models/decision_tree_model_v2.pkl
-git commit -m "Train and save model for V2"
+git commit -m "Store trained model as V2"
 git tag V2
 
-echo "**************************************"
-echo "Step 9: Compare data and model versions"
-echo "**************************************"
+echo "========== [9] Version Comparison =========="
 
-# Compare data versions
-echo "******************************"
-echo "📊 Data file sizes for each version:"
-
-echo "🔁 Checking out V1 data..."
+echo "Comparing data file sizes:"
 git checkout V1
 dvc checkout
 dvc pull
-echo "V1 Data Size:"
+echo "➡️ V1 data line count:"
 wc -l data/iris.csv
-
-echo "🔁 Checking out V2 data..."
-git checkout V2
-dvc checkout
-dvc pull
-echo "V2 Data Size:"
-wc -l data/iris.csv
-
-# Compare model versions
-echo "*****************************************"
-echo "🧠 Model file checksums for each version:"
-echo "*****************************************"
-
-git checkout V1
-dvc checkout
-dvc pull
-echo "V1 Model Checksum:"
-md5sum models/decision_tree_model_v1.pkl || shasum models/decision_tree_model_v1.pkl
 
 git checkout V2
 dvc checkout
 dvc pull
-echo "V2 Model Checksum:"
-md5sum models/decision_tree_model_v2.pkl || shasum models/decision_tree_model_v2.pkl
+echo "➡️ V2 data line count:"
+wc -l data/iris.csv
 
-echo "**************************************"
-echo "All steps completed successfully!"
-echo "***************************************"
+echo "Comparing model file checksums:"
+git checkout V1
+dvc checkout
+dvc pull
+echo "✅ Model checksum (V1):"
+(md5sum models/decision_tree_model_v1.pkl 2>/dev/null) || (shasum models/decision_tree_model_v1.pkl)
+
+git checkout V2
+dvc checkout
+dvc pull
+echo "✅ Model checksum (V2):"
+(md5sum models/decision_tree_model_v2.pkl 2>/dev/null) || (shasum models/decision_tree_model_v2.pkl)
+
+echo "=========== ✅ Pipeline Finished Successfully ==========="
