@@ -47,22 +47,25 @@ jobs:
           echo "Downloading model from GCS..."
           gcloud storage cp "${{ env.MODEL_BUCKET_URI }}" ./app/model.joblib
           echo "Model downloaded successfully"
+          
+      - name: Configure and pull data with DVC
+        run: |
+          echo "Configuring DVC to use gcloud credentials..."
+          dvc remote modify gcsremote credentialpath $(pwd)/gcp-key.json
+
+          echo "DVC remote configuration:"
+          dvc remote list -v
+
+          echo "Running DVC pull:"
+          dvc pull -v
 
       - name: Run training
         run: |
           python train.py
 
-      - name: Run evaluation
+      - name: Run evaluation and generate metrics
         run: |
           python evaluate.py
-
-      - name: Generate model performance metrics
-        run: |
-          source .venv/bin/activate
-          python src/plot_metrics.py
-          echo "## Model Performance Metrics" >> report.md
-          echo "![Model Metrics](./metrics.png)" >> report.md
-          echo "" >> report.md
 
       - name: Run tests and save report
         run: |
@@ -76,3 +79,9 @@ jobs:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cml comment create report.md
+
+      - name: Upload model artifact
+        run: |
+          echo "Uploading model artifact to GCS..."
+          gcloud storage cp ./app/model.joblib "${{ env.MODEL_BUCKET_URI }}"
+          echo "Model artifact uploaded successfully"
