@@ -22,3 +22,4 @@ joblib.dump(model, "models/decision_tree_model.joblib")
 joblib.dump((X_test, y_test), "models/test_data.joblib")
 
 print("Model and test data saved.")
+

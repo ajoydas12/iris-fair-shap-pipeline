@@ -48,17 +48,17 @@ jobs:
           echo "Downloading model from GCS..."
           gcloud storage cp "${{ env.MODEL_BUCKET_URI }}" ./app/model.joblib
           echo "Model downloaded successfully"
-          
-      - name: Configure and pull data with DVC
-        run: |
-          echo "Configuring DVC to use gcloud credentials..."
-          dvc remote modify gcsremote credentialpath $(pwd)/gcp-key.json
 
-          echo "DVC remote configuration:"
-          dvc remote list -v
+      # - name: Configure and pull data with DVC
+      #   run: |
+      #     echo "Configuring DVC to use gcloud credentials..."
+      #     dvc remote modify gcsremote credentialpath $(pwd)/gcp-key.json
 
-          echo "Running DVC pull:"
-          dvc pull -v
+      #     echo "DVC remote configuration:"
+      #     dvc remote list -v
+
+      #     echo "Running DVC pull:"
+      #     dvc pull -v
 
       - name: Run training
         run: |
