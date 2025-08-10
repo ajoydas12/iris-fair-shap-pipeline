@@ -8,6 +8,11 @@ permissions:
   pull-requests: write
   contents: read
 
+env:
+  GCP_PROJECT_ID: premium-cipher-462011-p3
+  ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
+  MODEL_BUCKET_URI: gs://mlops-course-premium-cipher-462011-p3-unique/my-models/iris-classifier-week-1/model.joblib
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -54,8 +59,9 @@ jobs:
           export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json
           
           echo "Configuring DVC to use gcloud credentials..."
+          dvc remote add -d gcsremote ${{MODEL_BUCKET_URI}}
           dvc remote modify gcsremote credentialpath $(pwd)/gcp-key.json
-          
+                
           echo "Running DVC pull:"
           dvc pull -v
 
