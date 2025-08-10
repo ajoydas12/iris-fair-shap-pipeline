@@ -1,7 +1,7 @@
 name: Model Sanity Check
 
 on:
-  pull_request:
+  push:
     branches: [main]
 
 permissions:
@@ -85,7 +85,6 @@ jobs:
           source .venv/bin/activate
           python src/train.py
           python src/evaluate.py
-          python src/plot_metrics.py
       
       - name: Run Tests
         run: |
