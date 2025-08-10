@@ -88,7 +88,7 @@ jobs:
           echo "## Responsible AI Reports" >> report.md
           
           echo "### 1. Generating SHAP Explanations..." >> report.md
-          python src/generate_explanations.py >> report.md
+          python src/generate_explanation.py >> report.md
           
           echo "### 2. Checking Fairness (Fairlearn)..." >> report.md
           python src/check_fairness.py >> report.md
