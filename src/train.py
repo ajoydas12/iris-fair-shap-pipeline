@@ -10,7 +10,7 @@ X = data[['sepal_length','sepal_width','petal_length','petal_width']]
 y = data['species']
 
 # Train-test split
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=1)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=1)
 
 # Train model
 model = DecisionTreeClassifier(max_depth=3, random_state=1)

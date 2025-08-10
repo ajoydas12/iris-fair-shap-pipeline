@@ -62,11 +62,11 @@ jobs:
 
       - name: Run training
         run: |
-          python train.py
+          python src/train.py
 
       - name: Run evaluation and generate metrics
         run: |
-          python evaluate.py
+          python src/evaluate.py
 
       - name: Run tests and save report
         run: |

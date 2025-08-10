@@ -25,8 +25,8 @@ def find_suspicious_labels(data_path, k=5, threshold=0.5):
     
     # Load the data
     df = pd.read_csv(data_path)
-    X = df.drop(columns=['target'])
-    y = df['target']
+    X = df.drop(columns=['species'])
+    y = df['species']
 
     # We use KNeighborsClassifier as a convenient way to find neighbors.
     # We ask for k+1 neighbors because the closest neighbor to any point is the point itself.
@@ -36,6 +36,8 @@ def find_suspicious_labels(data_path, k=5, threshold=0.5):
     # Find the k+1 nearest neighbors for every point in the dataset.
     # The 'indices' array will contain the row index of each neighbor.
     distances, indices = knn.kneighbors(X)
+    # print(f"dfldjdlj:: {distances} and indics :: {indices}")
+    # return
 
     suspicious_indices = []
     # Iterate through each data point
