@@ -55,13 +55,60 @@ y = data['species']
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=1)
 
 # Train model
-model = DecisionTreeClassifier(max_depth=3, random_state=1)
+print("Fitting LabelEncoder...")
+le = LabelEncoder()
+le.fit(y_train)
+
+# 4. Train Model
+params = {
+    "max_depth": 4,
+    "random_state": 1
+}
+model = DecisionTreeClassifier(**params)
 model.fit(X_train, y_train)
 
-# Save model and test data
-os.makedirs("models", exist_ok=True)
-joblib.dump(model, "models/decision_tree_model.joblib")
-joblib.dump((X_test, y_test), "models/test_data.joblib")
+# # Save model and test data
+# os.makedirs("models", exist_ok=True)
+# joblib.dump(model, "models/decision_tree_model.joblib")
+# joblib.dump((X_test, y_test), "models/test_data.joblib")
 
-print("Model and test data saved.")
+# print("Model and test data saved.")
 
+
+
+# 5. Evaluate Model
+prediction = model.predict(X_test)
+accuracy_score = metrics.accuracy_score(prediction, y_test)
+print('The accuracy of the Decision Tree is', "{:.3f}".format(accuracy_score))
+
+# 6. Save and Upload Artifacts (Model AND Encoder)
+os.makedirs("artifacts", exist_ok=True)
+print("Saving model and label encoder artifacts...")
+joblib.dump(model, "artifacts/model.joblib")
+joblib.dump(le, "artifacts/label_encoder.joblib") ### FIXED ###: Save the encoder
+
+# Use the Python function for GCS upload
+bucket_name_str = BUCKET_URI.replace("gs://", "")
+model_gcs_path = f"{MODEL_ARTIFACT_DIR}/model.joblib"
+encoder_gcs_path = f"{MODEL_ARTIFACT_DIR}/label_encoder.joblib" ### FIXED ###: Define GCS path for encoder
+
+upload_to_gcs(bucket_name_str, "artifacts/model.joblib", model_gcs_path)
+upload_to_gcs(bucket_name_str, "artifacts/label_encoder.joblib", encoder_gcs_path) ### FIXED ###: Upload the encoder
+
+# 7. Log Experiment with MLflow
+with mlflow.start_run() as run:
+    mlflow.log_params(params)
+    mlflow.log_metric("accuracy", accuracy_score)
+    mlflow.set_tag("Training Info", "Decision tree model for IRIS data")
+
+    signature = infer_signature(X_train, model.predict(X_train))
+    
+    model_info = mlflow.sklearn.log_model(
+        sk_model=model,
+        artifact_path="iris_model",
+        signature=signature,
+        input_example=X_train.head(1),
+        # Use the variable to conditionally register the model
+        registered_model_name=REGISTERED_MODEL_NAME if REGISTERED_MODEL_NAME else None, ### FIXED ###
+    )
+    print(f"MLflow Run completed. Run ID: {run.info.run_id}")

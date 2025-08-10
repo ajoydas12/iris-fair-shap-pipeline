@@ -1,90 +1,94 @@
-import os
+import pandas as pd
 import joblib
 import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
+import os
 from sklearn.metrics import (
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score,
     classification_report,
+    confusion_matrix,
     ConfusionMatrixDisplay
 )
+from sklearn.model_selection import train_test_split
 
-# Load model and data
-model = joblib.load("models/decision_tree_model.joblib")
-X_test, y_test = joblib.load("models/test_data.joblib")
+def plot_and_save_metrics():
+    """
+    Loads artifacts, evaluates the model, and plots and saves
+    the confusion matrix and classification report as a single image.
+    """
+    print("--- Starting to Plot Metrics ---")
 
-# Predict
-y_pred = model.predict(X_test)
+    # === Load data ===
+    df = pd.read_csv("data/iris.csv")
 
-# Overall metrics
-accuracy = accuracy_score(y_test, y_pred)
-precision = precision_score(y_test, y_pred, average='macro')
-recall = recall_score(y_test, y_pred, average='macro')
-f1 = f1_score(y_test, y_pred, average='macro')
+    # === Load artifacts ===
+    try:
+        model = joblib.load("artifacts/model.joblib")
+        le = joblib.load("artifacts/label_encoder.joblib")
+        print("Artifacts loaded successfully.")
+    except FileNotFoundError as e:
+        print(f"Error: {e}. Please ensure train.py has run and created artifacts.")
+        return
 
-# Classification report as dict
-report_dict = classification_report(y_test, y_pred, output_dict=True)
-df_report = pd.DataFrame(report_dict).transpose().round(3)
+    # === Prepare data dynamically based on model's expected features ===
+    try:
+        expected_features = model.feature_names_in_
+        X = df[expected_features]
+        y = df['species']
+    except AttributeError:
+        print("Warning: 'feature_names_in_' not found. Falling back to dropping columns.")
+        X = df.drop(columns=['species', 'location'], errors='ignore')
+        y = df['species']
+    except KeyError as e:
+        print(f"Error: Model was trained on features not present in the new data: {e}")
+        return
 
-# Create figure layout
-fig = plt.figure(figsize=(18, 10))
-grid = fig.add_gridspec(2, 2, height_ratios=[1, 1.2])
+    # === Re-create the exact same train/test split as in training ===
+    _, X_test, _, y_test = train_test_split(
+        X,
+        y,
+        test_size=0.4,
+        random_state=42,
+        stratify=y
+    )
+    print(f"Test set created with {len(X_test)} samples.")
 
-# --- Confusion Matrix ---
-ax1 = fig.add_subplot(grid[0, 0])
-ConfusionMatrixDisplay.from_predictions(y_test, y_pred, cmap=plt.cm.Blues, ax=ax1)
-ax1.set_title("Confusion Matrix", fontsize=14, fontweight="bold")
+    # === Predict ===
+    y_pred = model.predict(X_test)
 
-# --- Basic Metrics ---
-ax2 = fig.add_subplot(grid[0, 1])
-ax2.axis('off')
-metrics_text = (
-    f"Overall Metrics\n\n"
-    f"Accuracy : {accuracy:.3f}\n"
-    f"Precision: {precision:.3f}\n"
-    f"Recall   : {recall:.3f}\n"
-    f"F1 Score : {f1:.3f}"
-)
-ax2.text(0, 0.9, metrics_text, fontsize=14, va="top", ha="left", fontweight="bold")
+    # === Generate Metrics for Plotting ===
+    report_dict = classification_report(y_test, y_pred, target_names=le.classes_, output_dict=True)
+    cm = confusion_matrix(y_test, y_pred)
+    report_df = pd.DataFrame(report_dict).transpose()
 
-# --- Per-class Metrics Table ---
-ax3 = fig.add_subplot(grid[1, 0])
-ax3.axis('off')
-table_data = df_report.drop(index=["accuracy", "macro avg", "weighted avg"]).reset_index()
-table_data.columns = ["Class", "Precision", "Recall", "F1-Score", "Support"]
-table = ax3.table(
-    cellText=table_data.values,
-    colLabels=table_data.columns,
-    loc='center',
-    cellLoc='center'
-)
-table.auto_set_font_size(False)
-table.set_fontsize(10)
-table.scale(1.2, 1.5)
-ax3.set_title("Per-Class Metrics", fontsize=14, fontweight="bold")
+    # === Plot ===
+    fig, ax = plt.subplots(1, 2, figsize=(14, 6))
+    fig.suptitle("Model Performance Metrics", fontsize=16)
 
-# --- Bar Chart of Per-Class Metrics ---
-ax4 = fig.add_subplot(grid[1, 1])
-classes = table_data["Class"]
-x = np.arange(len(classes))
-width = 0.25
-ax4.bar(x - width, table_data["Precision"], width, label="Precision")
-ax4.bar(x, table_data["Recall"], width, label="Recall")
-ax4.bar(x + width, table_data["F1-Score"], width, label="F1-Score")
-ax4.set_xticks(x)
-ax4.set_xticklabels(classes, rotation=45, ha="right")
-ax4.set_ylim(0, 1)
-ax4.set_ylabel("Score")
-ax4.set_title("Per-Class Metrics Chart", fontsize=14, fontweight="bold")
-ax4.legend()
+    # Plot 1: Confusion Matrix
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=le.classes_)
+    disp.plot(ax=ax[0], cmap="Blues", values_format='d')
+    ax[0].set_title("Confusion Matrix")
 
-# Adjust layout & save
-plt.tight_layout()
-os.makedirs("artifacts", exist_ok=True)
-plt.savefig("artifacts/full_detailed_report.png", dpi=300)
-plt.close()
+    # Plot 2: Classification Report Table
+    ax[1].axis("off") # Hide axes
+    table = ax[1].table(
+        cellText=report_df.round(2).values,
+        rowLabels=report_df.index,
+        colLabels=report_df.columns,
+        cellLoc='center',
+        loc='center'
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(10)
+    table.scale(1.2, 1.2)
+    ax[1].set_title("Classification Report", pad=20)
 
-print("Detailed evaluation dashboard saved to plots/full_detailed_report.png")
+    # === Save plot to artifacts directory ===
+    os.makedirs("artifacts", exist_ok=True)
+    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.savefig("artifacts/metrics.png")
+    
+    print("Metrics plot saved to artifacts/metrics.png")
+    print("----------------------------\n")
+
+if __name__ == "__main__":
+    plot_and_save_metrics()

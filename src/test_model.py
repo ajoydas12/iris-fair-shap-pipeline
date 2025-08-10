@@ -5,7 +5,7 @@ from sklearn.metrics import accuracy_score, precision_score, f1_score
 
 @pytest.fixture(scope="module")
 def load_model_and_data():
-    model_path = "models/decision_tree_model.joblib"
+    model_path = "models/model.joblib"
     test_data_path = "models/test_data.joblib"
 
     assert os.path.exists(model_path), f"Model file not found: {model_path}"

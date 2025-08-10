@@ -23,7 +23,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     stratify=df['species']
 )
 # Initialize SHAP explainer and calculate SHAP values
-mod_dt = joblib.load("artifacts/decision_tree_model.joblib")
+mod_dt = joblib.load("artifacts/model.joblib")
 if not os.path.exists("artifacts/shap_values.pkl"):
     print("Calculating SHAP values...")
     shap_values = shap.TreeExplainer(mod_dt).shap_values(X_train)

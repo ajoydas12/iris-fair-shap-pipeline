@@ -14,7 +14,7 @@ def check_model_fairness():
 
     try:
         # Load model and data
-        model = joblib.load("artifacts/decision_tree_model.joblib")
+        model = joblib.load("artifacts/model.joblib")
         df = pd.read_csv("data/iris.csv")
 
         if 'location' not in df.columns:
