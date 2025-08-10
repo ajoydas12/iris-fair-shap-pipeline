@@ -1,0 +1,175 @@
+week 8:MLOPs
+1. In cloudshell, mkdir week8
+2. cd week8
+3. git clone https://github.com/ajoydas12/MLops.git
+4. cd MLops
+5. python3 -m venv .venv
+6. source .venv/bin/activate
+7. pip install -r requirements.txt
+8. dvc pull data/iris.csv.dvc
+9. git checkout -b feature/data-poisoning-experiment
+10. start mlflow and use instance's external ip address to view the ui.
+11. train the model on iris.csv, check model performance in mlflow. Optional - commit & see git actions
+11. nano poison_data.py
+
+# poison_data.py
+
+import pandas as pd
+import numpy as np
+import argparse
+import os
+import random
+
+def poison_labels(input_path, output_path, poison_level):
+    """
+    Loads a CSV, flips the labels for a specified percentage of rows,
+    and saves the result.
+
+    Args:
+        input_path (str): Path to the original CSV file.
+        output_path (str): Path to save the poisoned CSV file.
+        poison_level (float): The percentage of labels to flip (e.g., 0.10 for 10%).
+    """
+    # Load the dataset
+    df = pd.read_csv(input_path)
+    
+    # Get the unique labels in the target column
+    unique_labels = df['species'].unique().tolist()
+    if len(unique_labels) < 2:
+        print("Error: Cannot flip labels with less than two unique classes.")
+        return
+
+    # Determine the number of rows to poison
+    num_rows = len(df)
+    num_to_poison = int(num_rows * poison_level)
+
+    if num_to_poison == 0 and poison_level > 0:
+        print(f"Warning: Poison level {poison_level * 100}% is too low to select any rows. No labels will be flipped.")
+        df.to_csv(output_path, index=False)
+        return
+
+    print(f"Flipping labels for {num_to_poison} of {num_rows} rows ({poison_level * 100:.2f}%)...")
+    
+    # Create a copy to modify
+    df_poisoned = df.copy()
+
+    # Select random row indices to poison without replacement
+    poison_indices = np.random.choice(df.index, size=num_to_poison, replace=False)
+
+    # Flip the label for each selected row
+    for idx in poison_indices:
+        original_label = df_poisoned.loc[idx, 'target']
+        # Create a list of possible new labels (all labels except the original one)
+        possible_new_labels = [label for label in unique_labels if label != original_label]
+        # Choose a new label randomly from the possibilities
+        new_label = random.choice(possible_new_labels)
+        # Apply the flipped label
+        df_poisoned.loc[idx, 'target'] = new_label
+    
+    # Ensure the output directory exists
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    df_poisoned.to_csv(output_path, index=False)
+    print(f"Poisoned data with flipped labels saved to {output_path}")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Poison a dataset by flipping labels.")
+    parser.add_argument("--input-path", type=str, default="data/iris.csv", help="Path to the input CSV file.")
+    parser.add_argument("--output-path", type=str, default="data/iris_poisoned.csv", help="Path for the poisoned output CSV.")
+    parser.add_argument("--poison-level", type=float, required=True, help="Fraction of labels to flip (e.g., 0.05 for 5%).")
+    
+    args = parser.parse_args()
+
+    if not 0.0 <= args.poison_level <= 1.0:
+        raise ValueError("Poison level must be between 0.0 and 1.0")
+
+    poison_labels(args.input_path, args.output_path, args.poison_level)
+
+12. python poison_data.py --poison-level 0.05
+13. python train.py --data-path data/iris_poisoned.csv
+14. check mlflow, optional , commit and see results in git actions
+15. python src/evaluate.py
+16. 
+
+18. nano check_labels.py
+
+# check_labels.py
+
+import pandas as pdimport numpy as np
+from sklearn.neighbors import KNeighborsClassifier
+import argparse
+
+def find_suspicious_labels(data_path, k=5, threshold=0.5):
+    """
+    Analyzes a dataset to find rows with potentially flipped labels using KNN.
+
+    A row is considered suspicious if its label disagrees with a certain threshold
+    of its k-nearest neighbors.
+
+    Args:
+        data_path (str): Path to the CSV data file.
+        k (int): Number of neighbors to consider.
+        threshold (float): Fraction of neighbors that must disagree to flag a point (e.g., 0.5 means 50% or more).
+
+    Returns:
+        list: A list of indices for rows with suspicious labels.
+    """
+    print(f"Checking for suspicious labels in: {data_path}")
+    print(f"Using k={k} and threshold={threshold}\n")
+    
+    # Load the data
+    df = pd.read_csv(data_path)
+    X = df.drop(columns=['target'])
+    y = df['target']
+
+    # We use KNeighborsClassifier as a convenient way to find neighbors.
+    # We ask for k+1 neighbors because the closest neighbor to any point is the point itself.
+    knn = KNeighborsClassifier(n_neighbors=k + 1)
+    knn.fit(X, y)
+
+    # Find the k+1 nearest neighbors for every point in the dataset.
+    # The 'indices' array will contain the row index of each neighbor.
+    distances, indices = knn.kneighbors(X)
+
+    suspicious_indices = []
+    # Iterate through each data point
+    for i in range(len(df)):
+        original_label = y.iloc[i]
+        
+        # Get the labels of the k *other* neighbors (exclude the point itself, which is at index 0)
+        neighbor_indices = indices[i][1:]
+        neighbor_labels = y.iloc[neighbor_indices]
+        
+        # Count how many neighbors have a different label
+        num_mismatched = np.sum(neighbor_labels != original_label)
+        
+        # Check if the mismatch ratio exceeds our threshold
+        if (num_mismatched / k) >= threshold:
+            suspicious_indices.append(i)
+            # Optional: Print details for each suspicious point found
+            # print(f"  - Row {i} is suspicious. Label is '{original_label}', but {num_mismatched}/{k} neighbors disagree.")
+
+    print(f"\n--- Report ---")
+    print(f"Found {len(suspicious_indices)} suspicious labels out of {len(df)} total rows.")
+    if suspicious_indices:
+        print(f"Suspicious row indices: {suspicious_indices}")
+    print("--------------")
+    
+    return suspicious_indices
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Check for suspicious labels in a dataset using KNN.")
+    parser.add_argument("--data-path", type=str, required=True, help="Path to the input CSV file to check.")
+    parser.add_argument("--k", type=int, default=5, help="Number of nearest neighbors to check against.")
+    parser.add_argument("--threshold", type=float, default=0.5, help="Fraction of neighbors that must disagree to flag a point.")
+    
+    args = parser.parse_args()
+
+    find_suspicious_labels(data_path=args.data_path, k=args.k, threshold=args.threshold)
+
+19. python check_labels.py --data-path data/iris.csv
+20. # First, ensure the 10% poisoned file exists
+python poison_data.py --poison-level 0.10 --output-path data/iris_poisoned_10pct.csv
+
+# Now, check that file
+python check_labels.py --data-path data/iris_poisoned_10pct.csv
