@@ -1,7 +1,8 @@
 name: Model Evaluation and Sanity Test
 
 on:
-  workflow_dispatch:
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
@@ -44,6 +45,7 @@ jobs:
           export GOOGLE_APPLICATION_CREDENTIALS=$(pwd)/gcp-key.json
           
           echo "Configuring DVC to use gcloud credentials..."
+          dvc remote add -d gcsremote $MODEL_BUCKET_URI
           dvc remote modify gcsremote credentialpath $(pwd)/gcp-key.json
 
           echo "Running DVC pull:"
