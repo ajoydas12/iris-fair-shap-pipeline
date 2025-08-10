@@ -1,7 +1,7 @@
 name: Model Sanity Check
 
 on:
-  pull_request:
+  push:
     branches: [main]
 
 permissions:
@@ -127,13 +127,24 @@ jobs:
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # - name: Comment on PR with CML
+      #   env:
+      #     REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #   run: |
+      #     source .venv/bin/activate
+      #     # Append the SHAP plot to the report for CML
+      #     echo "## Model Explainability (SHAP)" >> report.md
+      #     echo "![SHAP Summary](./artifacts/shap_summary_global.png)" >> report.md
+          
+      #     cml comment create report.md
+
       - name: Comment on PR with CML
+        if: github.event.pull_request.head.repo.full_name == github.repository
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           source .venv/bin/activate
-          # Append the SHAP plot to the report for CML
           echo "## Model Explainability (SHAP)" >> report.md
           echo "![SHAP Summary](./artifacts/shap_summary_global.png)" >> report.md
-          
           cml comment create report.md
+
