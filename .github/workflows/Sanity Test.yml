@@ -48,8 +48,8 @@ jobs:
           # dvc remote add -d gcsremote $MODEL_BUCKET_URI
           # dvc remote modify gcsremote credentialpath $(pwd)/gcp-key.json
 
-          echo "Running DVC pull:"
-          dvc pull -v
+          # echo "Running DVC pull:"
+          # dvc pull -v
 
       - name: Data Quality Check
         id: label_check
